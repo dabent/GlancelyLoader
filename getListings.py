@@ -219,7 +219,7 @@ def main(args):
     noException = True
     wroteLine = False
 
-    for offset in range(50,-1,-1):
+    for offset in range(500,-1,-1):
         try:
             print str(offset)
             result = lc.getActive(offset*limit,limit)
@@ -299,4 +299,12 @@ if __name__ == "__main__":
         else:
             shutil.copy(src2, dst)
     
-    
+        if sys.platform == "win32":
+            process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/cp /c/tmp/images/product/*.jpg /c/var/www/images/product"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        else:
+            process = subprocess.Popen(["/bin/cp","-rf","/tmp/images/product/","/var/www/images/"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+   
+        if sys.platform == "win32":
+            process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/home/dabent/loaders/processCJSQL.bsh"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        else:
+            process = subprocess.Popen(["/home/dabent/loaders/processCJSQL.bsh"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
