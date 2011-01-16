@@ -147,6 +147,7 @@ class cjFeeder:
                     pr.title = title.replace('"', '')
                     pr.description = elem.findtext("description").replace("'", "") #self.getText(product.getElementsByTagName("description")[0].childNodes).replace("'", "")
                     pr.price = elem.findtext("price").replace("'", "") #self.getText(product.getElementsByTagName("price")[0].childNodes).replace(",", "")
+                    pr.price = pr.price.replace(",", "") #self.getText(product.getElementsByTagName("price")[0].childNodes).replace(",", "")
                     pr.currency = elem.findtext("currency").replace("'", "") #self.getText(product.getElementsByTagName("currency")[0].childNodes)
                     pr.tags = elem.findtext("keywords").replace("'", "") #self.getText(product.getElementsByTagName("keywords")[0].childNodes).replace("'", "")
                     pr.url = elem.findtext("buyurl") #self.getText(product.getElementsByTagName("buyurl")[0].childNodes)

@@ -33,58 +33,6 @@ class ListingClient(EtsyClient):
     def getActive(self, offset, limit):
         return EtsyClient.process(self, "listings/active", {'includes': 'Images:1,Shop', 'offset': offset, 'limit': limit})
 
-def calculateColor(hue, saturation, brightness):
-    HUE_BASE = 0
-    HUE_RED_LOW_BASE = 0
-    HUE_RED_LOW_MAX = 14 #0.038 * 360;
-    HUE_ORANGE_BASE = 14 #0.038 * 360;
-    HUE_ORANGE_MAX = 40 #0.110 * 360;
-    HUE_YELLOW_BASE = 40 #0.110 * 360; // was 0.120
-    HUE_YELLOW_MAX = 58 #0.160 * 360; // was 0.170
-    HUE_GREEN_BASE = 58 #0.160 * 360;
-    HUE_GREEN_MAX = 144 #0.400 * 360;
-    HUE_BLUE_BASE = 144 #0.400 * 360; // was 0.422
-    HUE_BLUE_MAX = 252 #0.700 * 360;  // was 0.722
-    HUE_PURPLE_BASE = 252 #0.700 * 360;
-    HUE_PURPLE_MAX = 330 #0.916 * 360;
-    HUE_RED_BASE = 330 #0.916 * 360;
-    HUE_RED_MAX = 360;
-    HUE_MAX = 360;
-
-    UNKNOWN = 0;
-    RED = 1;
-    ORANGE = 2;
-    YELLOW = 3;
-    GREEN = 4;
-    BLUE = 5;
-    PURPLE = 6;
-    BLACK = 7;
-    WHITE = 8;
-
-    color = UNKNOWN
-    
-    if (hue < 20) and (saturation < 20) and (brightness > 46):
-        color = WHITE
-    elif (saturation < 20) and (brightness <= 46):
-        color = BLACK
-    elif (hue >= HUE_RED_LOW_BASE) and (hue <= HUE_RED_LOW_MAX):
-        color = RED
-    elif (hue >= HUE_ORANGE_BASE) and (hue <= HUE_ORANGE_MAX):
-        color = ORANGE
-    elif (hue > HUE_YELLOW_BASE) and (hue <= HUE_YELLOW_MAX):
-        color = YELLOW
-    elif (hue > HUE_GREEN_BASE) and (hue <= HUE_GREEN_MAX):
-        color = GREEN
-    elif (hue > HUE_BLUE_BASE) and (hue <= HUE_BLUE_MAX):
-        color = BLUE
-    elif (hue > HUE_PURPLE_BASE) and (hue <= HUE_PURPLE_MAX):
-        color = PURPLE
-    elif (hue > HUE_RED_BASE) and (hue <= HUE_RED_MAX):
-        color = RED
-    else:
-        color = UNKNOWN
-    return color
-
 def createLine(index, listing):
     line = None;
     try:
@@ -180,10 +128,6 @@ def createLine(index, listing):
                     line = line +  ",'Etsy','" + shopName + "'," + str(random.getrandbits(64))
             else:
                 line = line +  ",'','Etsy',"  + str(random.getrandbits(64))
-            #if (hue > 0) and (saturation > 0):
-            #    line = line +  "," + str(calculateColor(hue, saturation, brightness)) + "),\n"
-            #else:
-            #    line = line +  ",0),\n"
             line = line +  "),\n"
     except:
         print "WTF"
@@ -295,16 +239,31 @@ if __name__ == "__main__":
         src2 = "/var/www/listing2.php"
 
         if tableArg == "":
-            shutil.copy(src1, dst)
+            shutil.copyfile(src1, dst)
         else:
-            shutil.copy(src2, dst)
+            shutil.copyfile(src2, dst)
     
         if sys.platform == "win32":
             process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/cp /c/tmp/images/product/*.jpg /c/var/www/images/product"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         else:
-            process = subprocess.Popen(["/bin/cp","-rf","/tmp/images/product/","/var/www/images/"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            process = subprocess.Popen(["/bin/cp /tmp/images/product/*.jpg /var/www/images/product/"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            output = process.stderr.read()
+            if (len(output) > 0):
+                print "Images Move FAIL: " + output
+                failure = True
+            stdout_value = process.communicate()[0]
+            print "Move images Results:"
+            print stdout_value
+
    
         if sys.platform == "win32":
             process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/home/dabent/loaders/processCJSQL.bsh"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         else:
             process = subprocess.Popen(["/home/dabent/loaders/processCJSQL.bsh"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            output = process.stderr.read()
+            if (len(output) > 0):
+                print "Failed on CJ SQL: " + output
+                failure = True
+            stdout_value = process.communicate()[0]
+            print "CJ SQL Results:"
+            print stdout_value
