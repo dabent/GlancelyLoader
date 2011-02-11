@@ -234,9 +234,9 @@ if __name__ == "__main__":
         print "Java Output: " + output
 #            failure = True
 
-        dst = "/var/www/listing.php"
-        src1 = "/var/www/listing1.php"
-        src2 = "/var/www/listing2.php"
+        dst = "/var/www/listing_source.php"
+        src1 = "/var/www/listing_source1.php"
+        src2 = "/var/www/listing_source2.php"
 
         if tableArg == "":
             shutil.copyfile(src1, dst)
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         if sys.platform == "win32":
             process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/cp /c/tmp/images/product/*.jpg /c/var/www/images/product"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         else:
-            process = subprocess.Popen(["/bin/cp /tmp/images/product/*.jpg /var/www/images/product/"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            process = subprocess.Popen(["/bin/cp -rf /tmp/images/product/* /var/www/images/product/"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             output = process.stderr.read()
             if (len(output) > 0):
                 print "Images Move FAIL: " + output

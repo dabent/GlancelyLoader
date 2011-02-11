@@ -19,7 +19,7 @@ class Inserter:
     
 class ProductRow:
 
-    IMAGE_URL_BASE = "http://www.glancely.com/images/product/"
+    IMAGE_URL_BASE = ""
     
     def __init__(self):
 

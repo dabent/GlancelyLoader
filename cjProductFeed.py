@@ -23,6 +23,30 @@ class cjFeeder:
         self.bigX = 170
         self.bigY = 135
 
+    def dumpException(self, excInfo):
+            exceptionType, exceptionValue, exceptionTraceback = excInfo
+            #print "Problem? " + outname + " from: " + filename
+            print "*** print_tb:"
+            traceback.print_tb(exceptionTraceback)
+            print "*** print_exception:"
+            traceback.print_exception(exceptionType, exceptionValue, exceptionTraceback,
+                                      limit=2, file=sys.stdout)
+            print "*** print_exc:"
+            traceback.print_exc()
+            print "*** format_exc, first and last line:"
+            formatted_lines = traceback.format_exc().splitlines()
+            print formatted_lines[0]
+            print formatted_lines[-1]
+            print "*** format_exception:"
+            print repr(traceback.format_exception(exceptionType, exceptionValue,
+                                                  exceptionTraceback))
+            print "*** extract_tb:"
+            print repr(traceback.extract_tb(exceptionTraceback))
+            print "*** format_tb:"
+            print repr(traceback.format_tb(exceptionTraceback))
+            print "*** tb_lineno:", traceback.tb_lineno(exceptionTraceback)
+
+
     def resize(self, limitX,limitY,image,filename,align):
 
         x = image.size[0]
@@ -83,29 +107,34 @@ class cjFeeder:
     def pullImageAndGenThumbs(self, imageURL, id, retailerID):
 
         imageURLs = None
-        infile = "/tmp/imagestore/" + str(id) + ".jpg"
+        IMAGE_URL_BASE = "http://www.glancely.com/"
+        infile = "/tmp/imagestore/" + str(retailerID) + "/" + str(id) + ".jpg"
         try:
             urlOpener = urllib.URLopener()
             urlOpener.retrieve(imageURL, infile)
         except:
-            #print "Error Downloading: image: '" + imageURL + "'"
+            print "Error Downloading: image: '" + imageURL + "'"
+            self.dumpException(sys.exc_info())
             return False
         
         try:
             im = Image.open(infile)
         except:
-            #print "Error Opening: image: '" + infile + "'"
+            print "Error Opening: image: '" + infile + "'"
             return False
         #print infile, im.format, "%dx%d" % im.size, im.mode
 
         align = ALIGN_CENTER
         if (retailerID == 6) or (retailerID == 8): #DNA Shoes
             align = ALIGN_BOTTOM
-        retBig = self.resize(self.bigX,self.bigY,im,"/tmp/images/product/" + str(id) + "_170x135.jpg", align)
+        bigImageURL = "/tmp/images/product/" + str(retailerID) + "/" + str(id) + "_170x135.jpg"
+        retBig = self.resize(self.bigX,self.bigY,im,bigImageURL, align)
+        smallImageURL = "/tmp/images/product/" + str(retailerID) + "/" + str(id) + "_75x75.jpg"
         if retBig:
-            retSmall = self.resize(self.thumbX,self.thumbY,im,"/tmp/images/product/" + str(id) + "_75x75.jpg", align)
-            retBig = (str(id) + "_75x75.jpg", str(id) + "_170x135.jpg")
+            retSmall = self.resize(self.thumbX,self.thumbY,im,smallImageURL, align)
+            retBig = (smallImageURL.replace("/tmp/",IMAGE_URL_BASE), bigImageURL.replace("/tmp/",IMAGE_URL_BASE),smallImageURL)
         else:
+            print "could not get the image!"
             return False
 
         return retBig
@@ -113,8 +142,9 @@ class cjFeeder:
     def buildSQLFile(self, table, filename, retailer, count, retailerID):
 
         try:
-            outname = "/tmp/" + retailer + ".sql"
-            outname2 = "/tmp/" + retailer + "2.sql"
+            outname = "/tmp/cjSQLtmp/" + retailer + ".sql"
+            outname2 =" /tmp/cjSQLtmp/" + retailer + "2.sql"
+            destDir = "/tmp/cjSQL/"
             print "Writing to: " + outname + " from: " + filename
             fout = open(outname, 'w')
             fout.write("USE etsy_instant;\n")
@@ -138,43 +168,52 @@ class cjFeeder:
             
 #            for product in products:
             for event, elem in context:
+#                print "+",
                 if event == "end" and elem.tag == "product":
+#                    print "-",
                     pr = Listing.ProductRow()
 
                     pr.id = count
-                    pr.state = elem.findtext("instock") #self.getText(product.getElementsByTagName("instock")[0].childNodes)
-                    title = elem.findtext("name").replace("'", "") #self.getText(product.getElementsByTagName("name")[0].childNodes).replace("'", "")
+                    pr.state = elem.findtext("instock")
+                    title = elem.findtext("name").replace("'", "")
                     pr.title = title.replace('"', '')
-                    pr.description = elem.findtext("description").replace("'", "") #self.getText(product.getElementsByTagName("description")[0].childNodes).replace("'", "")
-                    pr.price = elem.findtext("price").replace("'", "") #self.getText(product.getElementsByTagName("price")[0].childNodes).replace(",", "")
-                    pr.price = pr.price.replace(",", "") #self.getText(product.getElementsByTagName("price")[0].childNodes).replace(",", "")
-                    pr.currency = elem.findtext("currency").replace("'", "") #self.getText(product.getElementsByTagName("currency")[0].childNodes)
-                    pr.tags = elem.findtext("keywords").replace("'", "") #self.getText(product.getElementsByTagName("keywords")[0].childNodes).replace("'", "")
-                    pr.url = elem.findtext("buyurl") #self.getText(product.getElementsByTagName("buyurl")[0].childNodes)
-                    pr.shop = elem.findtext("programname").replace("'", "") #self.getText(product.getElementsByTagName("programname")[0].childNodes)
-                    imageURL = elem.findtext("imageurl") #self.getText(product.getElementsByTagName("imageurl")[0].childNodes)
+                    pr.description = elem.findtext("description").replace("'", "")
+                    pr.price = elem.findtext("price").replace("'", "")
+                    pr.price = pr.price.replace(",", "")
+                    pr.currency = elem.findtext("currency").replace("'", "")
+                    if retailerID == 58: # Sun Jewelry has stupid keywords
+                        pr.tags = ' '
+                    else:
+                        pr.tags = elem.findtext("keywords").replace("'", "")
+                    pr.url = elem.findtext("buyurl")
+                    pr.shop = elem.findtext("programname").replace("'", "")
+                    imageURL = elem.findtext("imageurl")
+                    imageURLs = False
                     if imageURL:
+                        #print "Getting images for %s" % imageURL
                         imageURLs = self.pullImageAndGenThumbs(imageURL, count, retailerID)
                     if imageURLs == False:
+                        print "Skipping image",
                         continue
 
                     pr.url_75x75 = imageURLs[0]
                     pr.url_170x135 = imageURLs[1]
-                    pr.color = imageAnalysis.calculateImageColor('/tmp/images/product/'+imageURLs[0])
+                    pr.color = imageAnalysis.calculateImageColor(imageURLs[2])
                     
                     pr.sorter = random.getrandbits(64)
 
                     insertLine.listings.append(pr)
                     
                     if count % 25 != 0:
+                        # print count,
                         pass
                     else:
                         print ".",
                         try:
                             fout.write(insertLine.toString())
                         except UnicodeEncodeError:
+                            print "Skipping unicode line for file " + filename
                             pass
-                            #print "Skipping unicode line for file " + filename
                         insertLine = Listing.Inserter(table)
                     
                     count = count + 1
@@ -183,34 +222,43 @@ class cjFeeder:
             fout.write("/*!40000 ALTER TABLE `" + table + "` ENABLE KEYS */;\n")
             fout.close()
         except:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
             print "Problem? " + outname + " from: " + filename
-            print "*** print_tb:"
-            traceback.print_tb(exceptionTraceback)
-            print "*** print_exception:"
-            traceback.print_exception(exceptionType, exceptionValue, exceptionTraceback,
-                                      limit=2, file=sys.stdout)
-            print "*** print_exc:"
-            traceback.print_exc()
-            print "*** format_exc, first and last line:"
-            formatted_lines = traceback.format_exc().splitlines()
-            print formatted_lines[0]
-            print formatted_lines[-1]
-            print "*** format_exception:"
-            print repr(traceback.format_exception(exceptionType, exceptionValue,
-                                                  exceptionTraceback))
-            print "*** extract_tb:"
-            print repr(traceback.extract_tb(exceptionTraceback))
-            print "*** format_tb:"
-            print repr(traceback.format_tb(exceptionTraceback))
-            print "*** tb_lineno:", traceback.tb_lineno(exceptionTraceback)
+            self.dumpException(sys.exc_info())
+##            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+##            print "*** print_tb:"
+##            traceback.print_tb(exceptionTraceback)
+##            print "*** print_exception:"
+##            traceback.print_exception(exceptionType, exceptionValue, exceptionTraceback,
+##                                      limit=2, file=sys.stdout)
+##            print "*** print_exc:"
+##            traceback.print_exc()
+##            print "*** format_exc, first and last line:"
+##            formatted_lines = traceback.format_exc().splitlines()
+##            print formatted_lines[0]
+##            print formatted_lines[-1]
+##            print "*** format_exception:"
+##            print repr(traceback.format_exception(exceptionType, exceptionValue,
+##                                                  exceptionTraceback))
+##            print "*** extract_tb:"
+##            print repr(traceback.extract_tb(exceptionTraceback))
+##            print "*** format_tb:"
+##            print repr(traceback.format_tb(exceptionTraceback))
+##            print "*** tb_lineno:", traceback.tb_lineno(exceptionTraceback)
 
         print "DONE writing to: " + outname + " from: " + filename
 
         if sys.platform == "win32":
             process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/sed 's/`listing`/`listing2`/' /c" + outname + " >/c" + outname2], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         else:
-            process = subprocess.Popen(["/bin/bash","-c","/bin/sed 's/`listing`/`listing2`/' " + outname + " >" +  outname2], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE) #, stdout=subprocess.PIPE)
+            process = subprocess.Popen(["/bin/sed 's/`listing`/`listing2`/' " + outname + " >" +  outname2], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            process.communicate() # wait for sed to complete on long files before copy below
+
+        if sys.platform == "win32":
+            process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/cp "+ outname +" /tmp/cjSQL"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            process = subprocess.Popen(["/PROGRA~2/Git/bin/sh.exe", "-c", "/bin/cp "+ outname2 +" /tmp/cjSQL"], shell=False, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        else:
+            process = subprocess.Popen(["/bin/cp -f " + outname + " /home/dabent/cjSQL"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            process = subprocess.Popen(["/bin/cp -f " + outname2 + " /home/dabent/cjSQL"], shell=True, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
         print "DONE writing to: " + outname2 + " from: " + filename
 ##      except Exception as inst:
@@ -241,7 +289,7 @@ if __name__ == "__main__":
 ##        os._exit(1)
     cjF = cjFeeder()
 
-    cjF.buildSQLFile('listing','/tmp/MacMall_Affiliate_Advantage_Network-Product_Catalog_1.xml','/tmp/MacMall.sql',210000)
+    cjF.buildSQLFile('listing','/tmp/M_Fredric-M_Fredric_Product_Catalogs.xml','M_Fredric',760000,33)
 
 
     
